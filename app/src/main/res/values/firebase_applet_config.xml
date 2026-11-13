@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<resources>
+    <string name="firestore_database_id" translatable="false">ai-studio-android-pixelper-6f275e0f-660d-415a-98af-9d4a92a83f39</string>
+    <string name="recaptcha_site_key" translatable="false">6LdGOx4uAAAAABDiDMI2bRsa91XxrtOWejriIOab</string>
+</resources>

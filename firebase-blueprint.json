@@ -1,0 +1,322 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile metadata scoped to UID.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owner."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name."
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address."
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "Profile avatar URL."
+        },
+        "planId": {
+          "type": "string",
+          "enum": ["free", "pro"],
+          "description": "User tier identifier."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["userId", "displayName", "email", "planId", "createdAt", "updatedAt"]
+    },
+    "AppPreferences": {
+      "title": "AppPreferences",
+      "description": "Per-user enhancement, privacy, and export preferences.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner UID."
+        },
+        "defaultProcessingMode": {
+          "type": "string",
+          "enum": ["local", "cloud"],
+          "description": "Default enhancement pipeline."
+        },
+        "autoSave": {
+          "type": "boolean",
+          "description": "Automatically save completed outputs to device gallery."
+        },
+        "defaultFormat": {
+          "type": "string",
+          "enum": ["JPEG", "PNG", "WebP"],
+          "description": "Default image export format."
+        },
+        "defaultResolution": {
+          "type": "string",
+          "enum": ["ORIGINAL", "X2", "4K", "CUSTOM"],
+          "description": "Default output resolution policy."
+        },
+        "stripLocationMetadata": {
+          "type": "boolean",
+          "description": "Strip GPS EXIF tags on export by default."
+        },
+        "cloudAiConsentGranted": {
+          "type": "boolean",
+          "description": "Whether user explicitly consented to Cloud AI photo uploads."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "defaultProcessingMode",
+        "autoSave",
+        "defaultFormat",
+        "defaultResolution",
+        "stripLocationMetadata",
+        "cloudAiConsentGranted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "EnhancementJob": {
+      "title": "EnhancementJob",
+      "description": "Metadata and status tracking for local and Cloud AI photo enhancement jobs.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner UID."
+        },
+        "sourceName": {
+          "type": "string",
+          "description": "Sanitized display name of the imported image."
+        },
+        "sourceChecksum": {
+          "type": "string",
+          "description": "SHA-256 checksum of the original image."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["local", "cloud"],
+          "description": "Processing pipeline used."
+        },
+        "modelId": {
+          "type": "string",
+          "description": "Model or DSP pipeline identifier."
+        },
+        "presetId": {
+          "type": "string",
+          "description": "Preset identifier used for the job."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["queued", "processing", "completed", "failed", "canceled"],
+          "description": "Current lifecycle state of the job."
+        },
+        "progressStage": {
+          "type": "string",
+          "description": "Human-readable processing stage."
+        },
+        "inputWidth": {
+          "type": "integer",
+          "description": "Source image width in pixels."
+        },
+        "inputHeight": {
+          "type": "integer",
+          "description": "Source image height in pixels."
+        },
+        "outputWidth": {
+          "type": "integer",
+          "description": "Output image width in pixels."
+        },
+        "outputHeight": {
+          "type": "integer",
+          "description": "Output image height in pixels."
+        },
+        "format": {
+          "type": "string",
+          "enum": ["JPEG", "PNG", "WebP"],
+          "description": "Output file format."
+        },
+        "errorCode": {
+          "type": "string",
+          "description": "Optional failure diagnostic code."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "sourceName",
+        "sourceChecksum",
+        "mode",
+        "modelId",
+        "presetId",
+        "status",
+        "progressStage",
+        "inputWidth",
+        "inputHeight",
+        "outputWidth",
+        "outputHeight",
+        "format",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LibraryAsset": {
+      "title": "LibraryAsset",
+      "description": "Completed enhanced photo metadata stored in the user library.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner UID."
+        },
+        "jobId": {
+          "type": "string",
+          "description": "Associated EnhancementJob ID."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Editable title of the enhanced asset."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["local", "cloud"],
+          "description": "Processing mode used."
+        },
+        "resolutionLabel": {
+          "type": "string",
+          "enum": ["Original", "2x", "4K", "Custom"],
+          "description": "Concrete output tier label matching actual dimensions."
+        },
+        "inputWidth": {
+          "type": "integer",
+          "description": "Original width in pixels."
+        },
+        "inputHeight": {
+          "type": "integer",
+          "description": "Original height in pixels."
+        },
+        "outputWidth": {
+          "type": "integer",
+          "description": "Enhanced output width in pixels."
+        },
+        "outputHeight": {
+          "type": "integer",
+          "description": "Enhanced output height in pixels."
+        },
+        "format": {
+          "type": "string",
+          "enum": ["JPEG", "PNG", "WebP"],
+          "description": "Exported image format."
+        },
+        "byteSize": {
+          "type": "integer",
+          "description": "Output file size in bytes."
+        },
+        "localOutputPath": {
+          "type": "string",
+          "description": "App-private file path of the processed output."
+        },
+        "localOriginalPath": {
+          "type": "string",
+          "description": "App-private file path of the preserved original."
+        },
+        "thumbnailPath": {
+          "type": "string",
+          "description": "App-private file path of the thumbnail."
+        },
+        "isFavorite": {
+          "type": "boolean",
+          "description": "Whether the user bookmarked this asset."
+        },
+        "isSavedToGallery": {
+          "type": "boolean",
+          "description": "Whether the output was exported to device gallery."
+        },
+        "presetUsed": {
+          "type": "string",
+          "description": "Enhancement preset applied."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "jobId",
+        "displayName",
+        "mode",
+        "resolutionLabel",
+        "inputWidth",
+        "inputHeight",
+        "outputWidth",
+        "outputHeight",
+        "format",
+        "byteSize",
+        "localOutputPath",
+        "localOriginalPath",
+        "thumbnailPath",
+        "isFavorite",
+        "isSavedToGallery",
+        "presetUsed",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile owned by userId."
+    },
+    "/users/{userId}/preferences/{prefId}": {
+      "schema": { "$ref": "#/entities/AppPreferences" },
+      "description": "User-scoped app preferences and privacy consent settings."
+    },
+    "/users/{userId}/jobs/{jobId}": {
+      "schema": { "$ref": "#/entities/EnhancementJob" },
+      "description": "User-scoped enhancement job history and progress metadata."
+    },
+    "/users/{userId}/assets/{assetId}": {
+      "schema": { "$ref": "#/entities/LibraryAsset" },
+      "description": "User-scoped enhanced photo library metadata."
+    }
+  }
+}

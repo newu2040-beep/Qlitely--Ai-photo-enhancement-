@@ -1,0 +1,236 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: default-deny all unspecified paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidFormat(fmt) {
+      return fmt in ['JPEG', 'PNG', 'WebP'];
+    }
+
+    function isValidMode(mode) {
+      return mode in ['local', 'cloud'];
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() <= 200 &&
+             (!('photoUrl' in data) || data.photoUrl == null || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             data.planId in ['free', 'pro'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAppPreferences(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             isValidMode(data.defaultProcessingMode) &&
+             data.autoSave is bool &&
+             isValidFormat(data.defaultFormat) &&
+             data.defaultResolution in ['ORIGINAL', 'X2', '4K', 'CUSTOM'] &&
+             data.stripLocationMetadata is bool &&
+             data.cloudAiConsentGranted is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidJob(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.sourceName is string && data.sourceName.size() >= 1 && data.sourceName.size() <= 120 &&
+             data.sourceChecksum is string && data.sourceChecksum.size() >= 1 && data.sourceChecksum.size() <= 128 &&
+             isValidMode(data.mode) &&
+             data.modelId is string && data.modelId.size() >= 1 && data.modelId.size() <= 64 &&
+             data.presetId is string && data.presetId.size() >= 1 && data.presetId.size() <= 64 &&
+             data.status in ['queued', 'processing', 'completed', 'failed', 'canceled'] &&
+             data.progressStage is string && data.progressStage.size() >= 1 && data.progressStage.size() <= 80 &&
+             data.inputWidth is int && data.inputWidth >= 1 && data.inputWidth <= 32768 &&
+             data.inputHeight is int && data.inputHeight >= 1 && data.inputHeight <= 32768 &&
+             data.outputWidth is int && data.outputWidth >= 0 && data.outputWidth <= 32768 &&
+             data.outputHeight is int && data.outputHeight >= 0 && data.outputHeight <= 32768 &&
+             isValidFormat(data.format) &&
+             (!('errorCode' in data) || data.errorCode == null || (data.errorCode is string && data.errorCode.size() <= 120)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAsset(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.jobId is string && data.jobId.size() >= 1 && data.jobId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+             isValidMode(data.mode) &&
+             data.resolutionLabel in ['Original', '2x', '4K', 'Custom'] &&
+             data.inputWidth is int && data.inputWidth >= 1 && data.inputWidth <= 32768 &&
+             data.inputHeight is int && data.inputHeight >= 1 && data.inputHeight <= 32768 &&
+             data.outputWidth is int && data.outputWidth >= 1 && data.outputWidth <= 32768 &&
+             data.outputHeight is int && data.outputHeight >= 1 && data.outputHeight <= 32768 &&
+             isValidFormat(data.format) &&
+             data.byteSize is int && data.byteSize >= 0 && data.byteSize <= 500000000 &&
+             data.localOutputPath is string && data.localOutputPath.size() <= 500 &&
+             data.localOriginalPath is string && data.localOriginalPath.size() <= 500 &&
+             data.thumbnailPath is string && data.thumbnailPath.size() <= 500 &&
+             data.isFavorite is bool &&
+             data.isSavedToGallery is bool &&
+             data.presetUsed is string && data.presetUsed.size() <= 64 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // 1. User Profile (PII isolated strictly to owner)
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'email', 'planId', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'photoUrl', 'planId', 'createdAt', 'updatedAt']) &&
+                       incoming().planId == 'free' &&
+                       isValidUserProfile(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().planId == existing().planId &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'photoUrl', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // 2. App Preferences
+      match /preferences/{prefId} {
+        allow get: if isOwner(userId) && isValidId(prefId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(prefId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'defaultProcessingMode', 'autoSave', 'defaultFormat',
+                           'defaultResolution', 'stripLocationMetadata', 'cloudAiConsentGranted',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'defaultProcessingMode', 'autoSave', 'defaultFormat',
+                           'defaultResolution', 'stripLocationMetadata', 'cloudAiConsentGranted',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidAppPreferences(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(prefId) &&
+                         isValidAppPreferences(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'defaultProcessingMode', 'autoSave', 'defaultFormat',
+                           'defaultResolution', 'stripLocationMetadata', 'cloudAiConsentGranted',
+                           'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(prefId);
+      }
+
+      // 3. Enhancement Jobs
+      match /jobs/{jobId} {
+        allow get: if isOwner(userId) && isValidId(jobId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(jobId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'sourceName', 'sourceChecksum', 'mode', 'modelId', 'presetId',
+                           'status', 'progressStage', 'inputWidth', 'inputHeight',
+                           'outputWidth', 'outputHeight', 'format', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'sourceName', 'sourceChecksum', 'mode', 'modelId', 'presetId',
+                           'status', 'progressStage', 'inputWidth', 'inputHeight',
+                           'outputWidth', 'outputHeight', 'format', 'errorCode', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().status in ['queued', 'processing'] &&
+                         isValidJob(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(jobId) &&
+                         isValidJob(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         // Terminal state lock: completed and canceled jobs cannot mutate status
+                         !(existing().status in ['completed', 'canceled']) &&
+                         (
+                           (incoming().status in ['processing', 'completed', 'failed', 'canceled'] &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'status', 'progressStage', 'outputWidth', 'outputHeight', 'errorCode', 'updatedAt'
+                            ]))
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(jobId);
+      }
+
+      // 4. Library Assets
+      match /assets/{assetId} {
+        allow get: if isOwner(userId) && isValidId(assetId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(assetId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'jobId', 'displayName', 'mode', 'resolutionLabel',
+                           'inputWidth', 'inputHeight', 'outputWidth', 'outputHeight',
+                           'format', 'byteSize', 'localOutputPath', 'localOriginalPath',
+                           'thumbnailPath', 'isFavorite', 'isSavedToGallery', 'presetUsed',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'jobId', 'displayName', 'mode', 'resolutionLabel',
+                           'inputWidth', 'inputHeight', 'outputWidth', 'outputHeight',
+                           'format', 'byteSize', 'localOutputPath', 'localOriginalPath',
+                           'thumbnailPath', 'isFavorite', 'isSavedToGallery', 'presetUsed',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidAsset(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(assetId) &&
+                         isValidAsset(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().jobId == existing().jobId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action: Toggle favorite or saved-to-gallery flag
+                           incoming().diff(existing()).affectedKeys().hasOnly(['isFavorite', 'updatedAt']) ||
+                           incoming().diff(existing()).affectedKeys().hasOnly(['isSavedToGallery', 'updatedAt']) ||
+                           // Action: Rename asset
+                           incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']) ||
+                           // Action: Update gallery/file flags together
+                           incoming().diff(existing()).affectedKeys().hasOnly(['isFavorite', 'isSavedToGallery', 'displayName', 'updatedAt'])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(assetId);
+      }
+    }
+  }
+}

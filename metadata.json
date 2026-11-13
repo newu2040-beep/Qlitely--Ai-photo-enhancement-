@@ -1,0 +1,6 @@
+{
+  "name": "QLITEY",
+  "description": "Dark editorial photo enhancement and upscaling studio with local on-device processing and Cloud AI restoration, before/after comparison, and personal library.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

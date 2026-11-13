@@ -1,0 +1,12 @@
+*.apk binary -text -diff -merge
+*.aab binary -text -diff -merge
+*.keystore binary -text -diff -merge
+*.jks binary -text -diff -merge
+*.png binary -text -diff -merge
+*.jpg binary -text -diff -merge
+*.jpeg binary -text -diff -merge
+*.webp binary -text -diff -merge
+*.ttf binary -text -diff -merge
+*.otf binary -text -diff -merge
+*.so binary -text -diff -merge
+*.sha256 text eol=lf
